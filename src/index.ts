@@ -93,14 +93,6 @@ function loadConfig(cwd: string): ReadToolConfig {
     }
   }
 
-  // Validate and clamp values
-  if (config.maxLines !== undefined) {
-    config.maxLines = Math.max(1, Math.min(config.maxLines, 10000));
-  }
-  if (config.maxBytes !== undefined) {
-    config.maxBytes = Math.max(256, Math.min(config.maxBytes, 1024 * 1024)); // 256B to 1MB
-  }
-
   return config;
 }
 
