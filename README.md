@@ -30,36 +30,67 @@ pi update git:github.com/yourusername/pi-read
 ```bash
 git clone https://github.com/yourusername/pi-read.git
 cd pi-read
-npm install
 pi install /path/to/pi-read
 ```
 
 ## Configuration
 
-Create a config file at either:
+Add a `readTool` key to your pi `settings.json`.
 
-- `~/.pi/agent/read.json` - Global config (applies to all projects)
-- `.pi/read.json` - Project config (overrides global for current project)
+### Configuration File Locations
 
-### Example Config
+Pi-read looks for the `readTool` setting in these locations (first match wins):
+
+1. `.pi/settings.json` (project-specific)
+2. `~/.pi/agent/settings.json` (global)
+
+You can also edit settings via the `/settings` command in pi.
+
+### Example Configuration
+
+Add to your `.pi/settings.json` or `~/.pi/agent/settings.json`:
 
 ```json
 {
-  "maxLines": 100,
-  "maxBytes": 1024
+  "readTool": {
+    "maxLines": 100,
+    "maxBytes": 1024
+  }
 }
 ```
 
-### Options
+### Configuration Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `maxLines` | number | 100 | Maximum number of lines to read |
-| `maxBytes` | number | 1024 | Maximum bytes to read (256 to 1MB) |
+| `maxLines` | number | 100 | Maximum number of lines to read (1-10000) |
+| `maxBytes` | number | 1024 | Maximum bytes to read (256-1048576) |
 
-Values are validated and clamped to safe ranges:
-- `maxLines`: 1 to 10000
-- `maxBytes`: 256 to 1048576 (1MB)
+Values are validated and clamped to safe ranges.
+
+### Project-Specific Example
+
+Set conservative defaults globally, but allow more for specific projects:
+
+**`~/.pi/agent/settings.json`:**
+```json
+{
+  "readTool": {
+    "maxLines": 50,
+    "maxBytes": 512
+  }
+}
+```
+
+**`.pi/settings.json` (in a documentation project):**
+```json
+{
+  "readTool": {
+    "maxLines": 500,
+    "maxBytes": 51200
+  }
+}
+```
 
 ## Usage
 
@@ -69,7 +100,7 @@ Once installed, the read tool automatically uses your configured limits. No chan
 
 | Command | Description |
 |---------|-------------|
-| `/read-config` | Show current read tool configuration and config file locations |
+| `/read-config` | Show current read tool configuration and settings file locations |
 
 ### Example Session
 
@@ -96,7 +127,7 @@ The built-in read tool has generous defaults (2000 lines / 50KB) which can consu
 This extension:
 
 1. Registers a tool named `read` that overrides the built-in read tool
-2. Loads configuration from `~/.pi/agent/read.json` and `.pi/read.json`
+2. Loads configuration from pi's `settings.json` files
 3. Applies your custom limits when truncating file output
 4. Falls back to built-in behavior for images (no truncation needed)
 

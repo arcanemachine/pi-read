@@ -3,19 +3,21 @@
  * Customizable read tool for Pi coding agent
  *
  * Overrides the built-in `read` tool to allow configurable default
- * line and byte limits via settings or config files.
+ * line and byte limits via pi's settings.json.
  *
- * Configuration files (merged, project takes precedence):
- * - ~/.pi/agent/read.json (global)
- * - <cwd>/.pi/read.json (project-local)
+ * Configuration:
+ * Add to `.pi/settings.json` (project) or `~/.pi/agent/settings.json` (global):
  *
- * Example .pi/read.json:
  * ```json
  * {
- *   "maxLines": 100,
- *   "maxBytes": 1024
+ *   "readTool": {
+ *     "maxLines": 100,
+ *     "maxBytes": 1024
+ *   }
  * }
  * ```
+ *
+ * Project settings take precedence over global settings.
  *
  * Usage:
  * - `pi -e ./pi-read` - read tool with custom limits
@@ -27,10 +29,7 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import {
-  truncateHead,
-  formatSize,
-} from "@mariozechner/pi-coding-agent";
+import { truncateHead, formatSize } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -42,51 +41,55 @@ import { access, readFile } from "fs/promises";
 const DEFAULT_MAX_LINES = 100;
 const DEFAULT_MAX_BYTES = 1024; // 1KB
 
-interface ReadConfig {
+interface ReadToolConfig {
   maxLines?: number;
   maxBytes?: number;
 }
 
-const DEFAULT_CONFIG: ReadConfig = {
+interface Settings {
+  readTool?: ReadToolConfig;
+}
+
+const DEFAULT_CONFIG: ReadToolConfig = {
   maxLines: DEFAULT_MAX_LINES,
   maxBytes: DEFAULT_MAX_BYTES,
 };
 
 /**
- * Load configuration from global and project config files.
- * Project config takes precedence over global config.
+ * Load configuration from pi's settings.json files.
+ * Project settings take precedence over global settings.
  */
-function loadConfig(cwd: string): ReadConfig {
-  const globalConfigPath = join(homedir(), ".pi", "agent", "read.json");
-  const projectConfigPath = join(cwd, ".pi", "read.json");
+function loadConfig(cwd: string): ReadToolConfig {
+  const projectSettingsPath = join(cwd, ".pi", "settings.json");
+  const globalSettingsPath = join(homedir(), ".pi", "agent", "settings.json");
 
-  let config: ReadConfig = { ...DEFAULT_CONFIG };
+  let config: ReadToolConfig = { ...DEFAULT_CONFIG };
 
-  // Load global config first
-  if (existsSync(globalConfigPath)) {
+  // Load global settings first
+  if (existsSync(globalSettingsPath)) {
     try {
-      const globalConfig: Partial<ReadConfig> = JSON.parse(
-        readFileSync(globalConfigPath, "utf-8"),
+      const parsed: Settings = JSON.parse(
+        readFileSync(globalSettingsPath, "utf-8"),
       );
-      config = { ...config, ...globalConfig };
-    } catch (e) {
-      console.error(
-        `[pi-read] Warning: Could not parse ${globalConfigPath}: ${e}`,
-      );
+      if (parsed.readTool) {
+        config = { ...config, ...parsed.readTool };
+      }
+    } catch {
+      // Invalid JSON, ignore
     }
   }
 
-  // Project config overrides global
-  if (existsSync(projectConfigPath)) {
+  // Project settings override global
+  if (existsSync(projectSettingsPath)) {
     try {
-      const projectConfig: Partial<ReadConfig> = JSON.parse(
-        readFileSync(projectConfigPath, "utf-8"),
+      const parsed: Settings = JSON.parse(
+        readFileSync(projectSettingsPath, "utf-8"),
       );
-      config = { ...config, ...projectConfig };
-    } catch (e) {
-      console.error(
-        `[pi-read] Warning: Could not parse ${projectConfigPath}: ${e}`,
-      );
+      if (parsed.readTool) {
+        config = { ...config, ...parsed.readTool };
+      }
+    } catch {
+      // Invalid JSON, ignore
     }
   }
 
@@ -156,9 +159,9 @@ const readSchema = Type.Object({
 
 export default function (pi: ExtensionAPI) {
   // Store config per cwd (in case cwd changes)
-  const configCache = new Map<string, ReadConfig>();
+  const configCache = new Map<string, ReadToolConfig>();
 
-  function getConfig(cwd: string): ReadConfig {
+  function getConfig(cwd: string): ReadToolConfig {
     if (!configCache.has(cwd)) {
       configCache.set(cwd, loadConfig(cwd));
     }
@@ -168,7 +171,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: "read",
     label: "read (custom)",
-    description: `Read the contents of a file. Supports text files and images (jpg, png, gif, webp). Images are sent as attachments. For text files, output is truncated to configurable limits (default: ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES} bytes). Use offset/limit for large files. Configure via ~/.pi/agent/read.json or .pi/read.json.`,
+    description: `Read the contents of a file. Supports text files and images (jpg, png, gif, webp). Images are sent as attachments. For text files, output is truncated to configurable limits (default: ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES} bytes). Use offset/limit for large files. Configure via readTool in .pi/settings.json or ~/.pi/agent/settings.json.`,
     parameters: readSchema,
 
     async execute(
@@ -301,9 +304,12 @@ export default function (pi: ExtensionAPI) {
         `Max lines: ${config.maxLines}`,
         `Max bytes: ${config.maxBytes} (${formatSize(config.maxBytes ?? DEFAULT_MAX_BYTES)})`,
         "",
-        "Config files:",
-        `  Global: ~/.pi/agent/read.json`,
-        `  Project: ${join(ctx.cwd, ".pi", "read.json")}`,
+        "Settings files:",
+        `  Global: ~/.pi/agent/settings.json`,
+        `  Project: ${join(ctx.cwd, ".pi", "settings.json")}`,
+        "",
+        "Example configuration:",
+        '  { "readTool": { "maxLines": 100, "maxBytes": 1024 } }',
       ];
       ctx.ui.notify(lines.join("\n"), "info");
     },
