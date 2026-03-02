@@ -24,7 +24,7 @@
  *
  * Installation:
  * ```bash
- * pi install git:github.com/yourusername/pi-read
+ * pi install git:github.com/arcanemachine/pi-read
  * ```
  */
 
@@ -149,7 +149,7 @@ const readSchema = Type.Object({
   ),
 });
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   // Store config per cwd (in case cwd changes)
   const configCache = new Map<string, ReadToolConfig>();
 
@@ -248,9 +248,8 @@ export default function (pi: ExtensionAPI) {
           );
           outputText = `[Line ${startLineDisplay} is ${firstLineSize}, exceeds ${formatSize(
             config.maxBytes ?? DEFAULT_MAX_BYTES,
-          )} limit. Use bash: sed -n '${startLineDisplay}p' ${path} | head -c ${
-            config.maxBytes ?? DEFAULT_MAX_BYTES
-          }]`;
+          )} limit. Use bash: sed -n '${startLineDisplay}p' ${path} | head -c ${config.maxBytes ?? DEFAULT_MAX_BYTES
+            }]`;
         } else if (truncation.truncated) {
           // Truncation occurred - build actionable notice
           const endLineDisplay = startLineDisplay + truncation.outputLines - 1;

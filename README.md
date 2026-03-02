@@ -1,34 +1,34 @@
 # pi-read
 
-> Customizable read tool for Pi coding agent - configure default line/byte limits.
+> The Pi coding agent `/read` tool, but with lower (and configurable) default max values (e.g. 2000 lines -> 1000 lines).
 
 A plugin for [Pi](https://github.com/badlogic/pi-mono) that overrides the built-in `read` tool with configurable truncation limits.
 
 ## Features
 
-- **Configurable limits**: Set default max lines and bytes for file reads
-- **Global and project config**: Different limits per project or global defaults
-- **Sensible defaults**: 100 lines / 1KB (much smaller than built-in 2000 lines / 50KB)
-- **Full compatibility**: Supports all the same features as the built-in read tool (images, offset/limit, etc.)
+- Configurable limits: Set default max lines and bytes for file reads
+- Global and project config: Different limits per project or global defaults
+- Sensible defaults: 100 lines / 1KB (much smaller than built-in 2000 lines / 50KB)
+- Full compatibility: Supports all the same features as the built-in read tool (images, offset/limit, etc.)
 
 ## Installation
 
 ### From GitHub (Recommended)
 
 ```bash
-pi install git:github.com/yourusername/pi-read
+pi install git:github.com/arcanemachine/pi-read
 ```
 
 To update to the latest version:
 
 ```bash
-pi update git:github.com/yourusername/pi-read
+pi update git:github.com/arcanemachine/pi-read
 ```
 
 ### From Local Clone
 
 ```bash
-git clone https://github.com/yourusername/pi-read.git
+git clone https://github.com/arcanemachine/pi-read.git
 cd pi-read
 pi install /path/to/pi-read
 ```
@@ -63,10 +63,8 @@ Add to your `.pi/settings.json` or `~/.pi/agent/settings.json`:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `maxLines` | number | 100 | Maximum number of lines to read (1-10000) |
-| `maxBytes` | number | 1024 | Maximum bytes to read (256-1048576) |
-
-Values are validated and clamped to safe ranges.
+| `maxLines` | number | 100 | Maximum number of lines to read |
+| `maxBytes` | number | 1024 | Maximum bytes to read |
 
 ### Project-Specific Example
 
