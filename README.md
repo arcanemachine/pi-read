@@ -1,6 +1,6 @@
 # pi-read
 
-> The Pi coding agent `/read` tool, but with lower (and configurable) default max values (e.g. 2000 lines -> 1000 lines).
+> The Pi coding agent `/read` tool, but with lower (and configurable) default max values (e.g. 2000 lines -> 100 lines).
 
 A plugin for [Pi](https://github.com/badlogic/pi-mono) that overrides the built-in `read` tool with configurable truncation limits.
 
@@ -8,7 +8,7 @@ A plugin for [Pi](https://github.com/badlogic/pi-mono) that overrides the built-
 
 - Configurable limits: Set default max lines and bytes for file reads
 - Global and project config: Different limits per project or global defaults
-- Sensible defaults: 100 lines / 1KB (much smaller than built-in 2000 lines / 50KB)
+- Sensible defaults: 100 lines / 5KB (much smaller than built-in 2000 lines / 50KB)
 - Full compatibility: Supports all the same features as the built-in read tool (images, offset/limit, etc.)
 
 ## Installation
@@ -54,23 +54,24 @@ Add to your `.pi/settings.json` or `~/.pi/agent/settings.json`:
 {
   "readTool": {
     "maxLines": 100,
-    "maxBytes": 1024
+    "maxBytes": 5120
   }
 }
 ```
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `maxLines` | number | 100 | Maximum number of lines to read |
-| `maxBytes` | number | 1024 | Maximum bytes to read |
+| Option     | Type   | Default | Description                     |
+| ---------- | ------ | ------- | ------------------------------- |
+| `maxLines` | number | 100     | Maximum number of lines to read |
+| `maxBytes` | number | 5120    | Maximum bytes to read           |
 
 ### Project-Specific Example
 
 Set conservative defaults globally, but allow more for specific projects:
 
-**`~/.pi/agent/settings.json`:**
+`~/.pi/agent/settings.json`
+
 ```json
 {
   "readTool": {
@@ -80,7 +81,8 @@ Set conservative defaults globally, but allow more for specific projects:
 }
 ```
 
-**`.pi/settings.json` (in a documentation project):**
+`.pi/settings.json` (in a documentation project):
+
 ```json
 {
   "readTool": {
@@ -96,8 +98,8 @@ Once installed, the read tool automatically uses your configured limits. No chan
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
+| Command        | Description                                                      |
+| -------------- | ---------------------------------------------------------------- |
 | `/read-config` | Show current read tool configuration and settings file locations |
 
 ### Example Session
@@ -107,7 +109,7 @@ You: read a large file
 
 [read tool uses your configured limits, e.g., 100 lines / 1KB]
 
-[Showing lines 1-100 of 5000. Use offset=101 to continue.]
+[Showing lines 1-100 of 500. Use offset=101 to continue.]
 
 You: continue reading from offset 101
 ```

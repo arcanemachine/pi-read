@@ -12,7 +12,7 @@
  * {
  *   "readTool": {
  *     "maxLines": 100,
- *     "maxBytes": 1024
+ *     "maxBytes": 5120
  *   }
  * }
  * ```
@@ -39,7 +39,7 @@ import { access, readFile } from "fs/promises";
 
 // Default limits (can be overridden via config)
 const DEFAULT_MAX_LINES = 100;
-const DEFAULT_MAX_BYTES = 1024; // 1KB
+const DEFAULT_MAX_BYTES = 5120; // 5KB
 
 interface ReadToolConfig {
   maxLines?: number;
@@ -300,7 +300,7 @@ export default function(pi: ExtensionAPI) {
         `  Project: ${join(ctx.cwd, ".pi", "settings.json")}`,
         "",
         "Example configuration:",
-        '  { "readTool": { "maxLines": 100, "maxBytes": 1024 } }',
+        '  { "readTool": { "maxLines": 100, "maxBytes": 5120 } }',
       ];
       ctx.ui.notify(lines.join("\n"), "info");
     },
