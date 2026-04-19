@@ -33,6 +33,8 @@ cd pi-read
 pi install /path/to/pi-read
 ```
 
+No local `npm install` is required for normal usage.
+
 ## Configuration
 
 Add a `readTool` key to your pi `settings.json`.

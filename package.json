@@ -2,13 +2,10 @@
   "name": "pi-read",
   "version": "1.0.0",
   "description": "Customizable read tool for Pi coding agent - configure default line/byte limits",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch",
-    "prepare": "npm run build"
+    "watch": "tsc --watch"
   },
   "keywords": [
     "pi",
@@ -32,5 +29,15 @@
   },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*"
-  }
+  },
+  "peerDependenciesMeta": {
+    "@mariozechner/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE.md"
+  ]
 }
