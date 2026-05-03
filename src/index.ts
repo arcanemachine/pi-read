@@ -339,29 +339,6 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // Register a command to show current read configuration
-  pi.registerCommand("read-config", {
-    description: "Show current read tool configuration",
-    handler: async (_args, ctx) => {
-      const config = getConfig(ctx.cwd);
-      const lines = [
-        "Read Tool Configuration:",
-        "",
-        `Default max lines: ${config.maxLines}`,
-        `Default max bytes: ${config.maxBytes} (${formatSize(config.maxBytes ?? DEFAULT_MAX_BYTES)})`,
-        `Hard max limit lines: ${config.maxLimitLines}`,
-        `Hard max limit bytes: ${config.maxLimitBytes} (${formatSize(config.maxLimitBytes ?? DEFAULT_MAX_LIMIT_BYTES)})`,
-        "",
-        "Settings files:",
-        `  Global: ~/.pi/agent/settings.json`,
-        `  Project: ${join(ctx.cwd, ".pi", "settings.json")}`,
-        "",
-        "Example configuration:",
-        '  { "readTool": { "maxLines": 100, "maxBytes": 5120, "maxLimitLines": 2000, "maxLimitBytes": 51200 } }',
-      ];
-      ctx.ui.notify(lines.join("\n"), "info");
-    },
-  });
 
   // Clear cache on session start (in case configs changed)
   pi.on("session_start", async (_event, ctx) => {

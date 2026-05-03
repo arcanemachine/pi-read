@@ -126,12 +126,6 @@ Once installed, the read tool automatically uses your configured limits. No chan
 - Byte limits are hard safety limits; line limits are secondary guardrails.
 - Agent-requested limits are clamped by `maxLimitLines` and `maxLimitBytes`.
 
-### Commands
-
-| Command        | Description                                                      |
-| -------------- | ---------------------------------------------------------------- |
-| `/read-config` | Show current read tool configuration and settings file locations |
-
 ### Example Session
 
 ```
