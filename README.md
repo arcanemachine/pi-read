@@ -36,6 +36,17 @@ pi install /path/to/pi-read
 
 No local `npm install` is required for normal usage.
 
+## Development
+
+For local development and verification:
+
+```bash
+npm install
+npm run typecheck
+npm run test
+npm run build
+```
+
 ## Configuration
 
 Add a `readTool` key to your pi `settings.json`.
