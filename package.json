@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write src/index.ts package.json README.md tests/read.test.ts",
+    "test": "vitest run"
   },
   "keywords": [
     "pi",
@@ -24,8 +27,12 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.72.1",
+    "@sinclair/typebox": "^0.34.49",
     "@types/node": "^25.3.0",
-    "typescript": "^5.7.2"
+    "prettier": "^3.8.3",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.5"
   },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*"

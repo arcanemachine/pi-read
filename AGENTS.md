@@ -4,11 +4,12 @@
 
 Commit when a task is completed.
 
-## Pre-commit
+## Sanity checks (recommended)
 
 ```bash
-npx tsc --noEmit
-npx prettier --write src/index.ts package.json
+npm run typecheck
+npm run test
+npm run format
 ```
 
 ## Commit Style
