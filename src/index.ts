@@ -31,7 +31,11 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { truncateHead, formatSize } from "@mariozechner/pi-coding-agent";
+import {
+  truncateHead,
+  formatSize,
+  createReadToolDefinition,
+} from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -156,6 +160,24 @@ function clampLimit(
   return Math.min(normalized, Math.max(0, Math.floor(maxLimit)));
 }
 
+type CoreReadExecutor = (
+  toolCallId: string,
+  args: { path: string; offset?: number; limit?: number },
+  signal: AbortSignal | undefined,
+  onUpdate: (...args: unknown[]) => void,
+  ctx: { cwd: string; model?: { input?: string[] } },
+) => Promise<any>;
+
+function createCoreReadExecutor(cwd: string): CoreReadExecutor {
+  const definition = createReadToolDefinition(cwd);
+  if (!definition || typeof definition.execute !== "function") {
+    throw new Error(
+      "Incompatible pi-coding-agent: createReadToolDefinition() did not return an executable read tool",
+    );
+  }
+  return definition.execute as CoreReadExecutor;
+}
+
 const readSchema = Type.Object({
   path: Type.String({
     description: "Path to the file to read (relative or absolute)",
@@ -187,12 +209,20 @@ const readSchema = Type.Object({
 export default function (pi: ExtensionAPI) {
   // Store config per cwd (in case cwd changes)
   const configCache = new Map<string, ReadToolConfig>();
+  const coreReadCache = new Map<string, CoreReadExecutor>();
 
   function getConfig(cwd: string): ReadToolConfig {
     if (!configCache.has(cwd)) {
       configCache.set(cwd, loadConfig(cwd));
     }
     return configCache.get(cwd)!;
+  }
+
+  function getCoreRead(cwd: string): CoreReadExecutor {
+    if (!coreReadCache.has(cwd)) {
+      coreReadCache.set(cwd, createCoreReadExecutor(cwd));
+    }
+    return coreReadCache.get(cwd)!;
   }
 
   pi.registerTool({
@@ -226,21 +256,26 @@ export default function (pi: ExtensionAPI) {
         throw new Error(`Cannot read file: ${path}`);
       }
 
-      // Check if it's an image
+      // Delegate image reads to Pi core for MIME sniffing and resize safeguards
       const mimeType = detectImageMimeType(absolutePath);
-
       if (mimeType) {
-        // For images, read and return as base64
-        const buffer = await readFile(absolutePath);
-        const base64 = buffer.toString("base64");
+        const coreRead = getCoreRead(ctx.cwd);
+        const coreOffset =
+          offsetLines !== undefined
+            ? Math.max(1, Math.floor(offsetLines))
+            : undefined;
+        const coreLimit =
+          limitLines !== undefined
+            ? Math.max(0, Math.floor(limitLines))
+            : undefined;
 
-        return {
-          content: [
-            { type: "text", text: `Read image file [${mimeType}]` },
-            { type: "image", data: base64, mimeType },
-          ],
-          details: { mimeType, size: buffer.length },
-        };
+        return await coreRead(
+          _toolCallId,
+          { path, offset: coreOffset, limit: coreLimit },
+          signal,
+          _onUpdate,
+          ctx as { cwd: string; model?: { input?: string[] } },
+        );
       }
 
       // Handle text files with custom truncation
@@ -339,9 +374,9 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-
   // Clear cache on session start (in case configs changed)
   pi.on("session_start", async (_event, ctx) => {
     configCache.delete(ctx.cwd);
+    coreReadCache.delete(ctx.cwd);
   });
 }

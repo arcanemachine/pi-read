@@ -7,7 +7,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write src/index.ts package.json README.md tests/read.test.ts",
+    "format": "prettier --write src/index.ts package.json README.md tests/*.ts",
     "test": "vitest run"
   },
   "keywords": [

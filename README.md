@@ -10,7 +10,7 @@ A plugin for [Pi](https://github.com/badlogic/pi-mono) that overrides the built-
 - Configurable hard caps: Clamp agent-requested `limitLines` / `limitBytes`
 - Global and project config: Different limits per project or global defaults
 - Sensible defaults: 100 lines / 5KB (much smaller than built-in 2000 lines / 50KB)
-- Same core behavior as built-in read tool for text truncation and image reads
+- Delegates image reads to Pi core read tool (MIME sniffing + resize safeguards)
 
 ## Installation
 
@@ -154,6 +154,6 @@ This extension:
 2. Loads configuration from pi's `settings.json` files
 3. Applies your configured defaults (`maxLines` / `maxBytes`)
 4. Clamps agent-requested limits with hard caps (`maxLimitLines` / `maxLimitBytes`)
-5. Falls back to built-in behavior for images (no truncation needed)
+5. Delegates image reads to the built-in Pi core read tool for MIME sniffing and image resize safeguards
 
 The truncation logic uses the same `truncateHead` function as the built-in tool, ensuring consistent behavior.
