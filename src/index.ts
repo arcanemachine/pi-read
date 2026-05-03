@@ -12,7 +12,9 @@
  * {
  *   "readTool": {
  *     "maxLines": 100,
- *     "maxBytes": 5120
+ *     "maxBytes": 5120,
+ *     "maxLimitLines": 2000,
+ *     "maxLimitBytes": 51200
  *   }
  * }
  * ```
@@ -40,10 +42,14 @@ import { access, readFile } from "fs/promises";
 // Default limits (can be overridden via config)
 const DEFAULT_MAX_LINES = 100;
 const DEFAULT_MAX_BYTES = 5120; // 5KB
+const DEFAULT_MAX_LIMIT_LINES = 2000;
+const DEFAULT_MAX_LIMIT_BYTES = 50 * 1024; // 50KB
 
 interface ReadToolConfig {
   maxLines?: number;
   maxBytes?: number;
+  maxLimitLines?: number;
+  maxLimitBytes?: number;
 }
 
 interface Settings {
@@ -53,6 +59,8 @@ interface Settings {
 const DEFAULT_CONFIG: ReadToolConfig = {
   maxLines: DEFAULT_MAX_LINES,
   maxBytes: DEFAULT_MAX_BYTES,
+  maxLimitLines: DEFAULT_MAX_LIMIT_LINES,
+  maxLimitBytes: DEFAULT_MAX_LIMIT_BYTES,
 };
 
 /**
@@ -135,21 +143,48 @@ function detectImageMimeType(path: string): string | undefined {
   }
 }
 
+function clampLimit(
+  requested: number | undefined,
+  defaultLimit: number,
+  maxLimit: number | undefined,
+): number {
+  const normalized =
+    requested !== undefined ? Math.max(0, Math.floor(requested)) : defaultLimit;
+  if (maxLimit === undefined) {
+    return normalized;
+  }
+  return Math.min(normalized, Math.max(0, Math.floor(maxLimit)));
+}
+
 const readSchema = Type.Object({
   path: Type.String({
     description: "Path to the file to read (relative or absolute)",
   }),
-  offset: Type.Optional(
+  offsetLines: Type.Optional(
     Type.Number({
-      description: "Line number to start reading from (1-indexed)",
+      description:
+        "Line number to start reading from (1-indexed). Ignored when offsetBytes is provided",
     }),
   ),
-  limit: Type.Optional(
-    Type.Number({ description: "Maximum number of lines to read" }),
+  limitLines: Type.Optional(
+    Type.Number({
+      description: "Maximum number of lines to read (subject to maxLimitLines)",
+    }),
+  ),
+  offsetBytes: Type.Optional(
+    Type.Number({
+      description:
+        "Byte offset to start reading from (0-indexed). Takes precedence over offsetLines",
+    }),
+  ),
+  limitBytes: Type.Optional(
+    Type.Number({
+      description: "Maximum bytes to read (subject to maxLimitBytes)",
+    }),
   ),
 });
 
-export default function(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
   // Store config per cwd (in case cwd changes)
   const configCache = new Map<string, ReadToolConfig>();
 
@@ -163,12 +198,15 @@ export default function(pi: ExtensionAPI) {
   pi.registerTool({
     name: "read",
     label: "read (custom)",
-    description: `Read the contents of a file. Supports text files and images (jpg, png, gif, webp). Images are sent as attachments. For text files, output is truncated to configurable limits (default: ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES} bytes). Use offset/limit for large files. Configure via readTool in .pi/settings.json or ~/.pi/agent/settings.json.`,
+    description: `Read the contents of a file. Supports text files and images (jpg, png, gif, webp). Images are sent as attachments. For text files, output is truncated to configurable limits (default: ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES} bytes). Prefer using this tool to read files instead of using bash commands. Use offsets/limits for large files. Configure via readTool in .pi/settings.json or ~/.pi/agent/settings.json.`,
+    promptGuidelines: [
+      "Prefer using this tool to read files instead of using bash commands.",
+    ],
     parameters: readSchema,
 
     async execute(
       _toolCallId,
-      { path, offset, limit },
+      { path, offsetLines, limitLines, offsetBytes, limitBytes },
       signal,
       _onUpdate,
       ctx,
@@ -184,7 +222,7 @@ export default function(pi: ExtensionAPI) {
       // Check if file exists and is readable
       try {
         await access(absolutePath, constants.R_OK);
-      } catch (error) {
+      } catch {
         throw new Error(`Cannot read file: ${path}`);
       }
 
@@ -203,84 +241,101 @@ export default function(pi: ExtensionAPI) {
           ],
           details: { mimeType, size: buffer.length },
         };
+      }
+
+      // Handle text files with custom truncation
+      const buffer = await readFile(absolutePath);
+      const textContent = buffer.toString("utf-8");
+      const allLines = textContent.split("\n");
+      const totalFileLines = allLines.length;
+
+      const effectiveMaxLines = clampLimit(
+        limitLines,
+        config.maxLines ?? DEFAULT_MAX_LINES,
+        config.maxLimitLines,
+      );
+      const effectiveMaxBytes = clampLimit(
+        limitBytes,
+        config.maxBytes ?? DEFAULT_MAX_BYTES,
+        config.maxLimitBytes,
+      );
+
+      let startLine = 0;
+      let startByte = 0;
+      let selectedContent = textContent;
+
+      const hasOffsetBytes = offsetBytes !== undefined;
+      if (hasOffsetBytes) {
+        startByte = Math.max(0, Math.floor(offsetBytes));
+        if (startByte >= buffer.length) {
+          throw new Error(
+            `offsetBytes ${offsetBytes} is beyond end of file (${buffer.length} bytes total)`,
+          );
+        }
+
+        selectedContent = buffer.subarray(startByte).toString("utf-8");
+        const prefixText = buffer.subarray(0, startByte).toString("utf-8");
+        startLine =
+          prefixText.length === 0 ? 0 : prefixText.split("\n").length - 1;
       } else {
-        // Handle text files with custom truncation
-        const buffer = await readFile(absolutePath);
-        const textContent = buffer.toString("utf-8");
-        const allLines = textContent.split("\n");
-        const totalFileLines = allLines.length;
+        startLine =
+          offsetLines !== undefined
+            ? Math.max(0, Math.floor(offsetLines) - 1)
+            : 0;
 
-        // Apply offset if specified (1-indexed to 0-indexed)
-        const startLine = offset ? Math.max(0, offset - 1) : 0;
-        const startLineDisplay = startLine + 1; // For display (1-indexed)
-
-        // Check if offset is out of bounds
         if (startLine >= allLines.length) {
           throw new Error(
-            `Offset ${offset} is beyond end of file (${allLines.length} lines total)`,
+            `offsetLines ${offsetLines} is beyond end of file (${allLines.length} lines total)`,
           );
         }
 
-        // If limit is specified by user, use it; otherwise we'll let truncateHead decide
-        let selectedContent;
-        let userLimitedLines;
-        if (limit !== undefined) {
-          const endLine = Math.min(startLine + limit, allLines.length);
-          selectedContent = allLines.slice(startLine, endLine).join("\n");
-          userLimitedLines = endLine - startLine;
-        } else {
-          selectedContent = allLines.slice(startLine).join("\n");
-        }
+        selectedContent = allLines.slice(startLine).join("\n");
 
-        // Apply truncation with custom limits from config
-        const truncation = truncateHead(selectedContent, {
-          maxLines: config.maxLines ?? DEFAULT_MAX_LINES,
-          maxBytes: config.maxBytes ?? DEFAULT_MAX_BYTES,
-        });
-
-        let outputText;
-        let details: Record<string, unknown> = { truncation };
-
-        if (truncation.firstLineExceedsLimit) {
-          // First line at offset exceeds byte limit - tell model to use bash
-          const firstLineSize = formatSize(
-            Buffer.byteLength(allLines[startLine], "utf-8"),
+        if (startLine > 0) {
+          startByte = Buffer.byteLength(
+            `${allLines.slice(0, startLine).join("\n")}\n`,
+            "utf-8",
           );
-          outputText = `[Line ${startLineDisplay} is ${firstLineSize}, exceeds ${formatSize(
-            config.maxBytes ?? DEFAULT_MAX_BYTES,
-          )} limit. Use bash: sed -n '${startLineDisplay}p' ${path} | head -c ${config.maxBytes ?? DEFAULT_MAX_BYTES
-            }]`;
-        } else if (truncation.truncated) {
-          // Truncation occurred - build actionable notice
-          const endLineDisplay = startLineDisplay + truncation.outputLines - 1;
-          const nextOffset = endLineDisplay + 1;
-          outputText = truncation.content;
-          if (truncation.truncatedBy === "lines") {
-            outputText += `\n\n[Showing lines ${startLineDisplay}-${endLineDisplay} of ${totalFileLines}. Use offset=${nextOffset} to continue.]`;
-          } else {
-            outputText += `\n\n[Showing lines ${startLineDisplay}-${endLineDisplay} of ${totalFileLines} (${formatSize(
-              config.maxBytes ?? DEFAULT_MAX_BYTES,
-            )} limit). Use offset=${nextOffset} to continue.]`;
-          }
-        } else if (
-          userLimitedLines !== undefined &&
-          startLine + userLimitedLines < allLines.length
-        ) {
-          // User specified limit, there's more content, but no truncation
-          const remaining = allLines.length - (startLine + userLimitedLines);
-          const nextOffset = startLine + userLimitedLines + 1;
-          outputText = truncation.content;
-          outputText += `\n\n[${remaining} more lines in file. Use offset=${nextOffset} to continue.]`;
-        } else {
-          // No truncation, no user limit exceeded
-          outputText = truncation.content;
         }
-
-        return {
-          content: [{ type: "text", text: outputText }],
-          details,
-        };
       }
+
+      const startLineDisplay = startLine + 1;
+      const truncation = truncateHead(selectedContent, {
+        maxLines: effectiveMaxLines,
+        maxBytes: effectiveMaxBytes,
+      });
+
+      const nextOffsetLines = startLine + truncation.outputLines + 1;
+      const nextOffsetBytes = startByte + truncation.outputBytes;
+
+      let outputText = truncation.content;
+      const details: Record<string, unknown> = {
+        truncation,
+        effectiveLimits: {
+          maxLines: effectiveMaxLines,
+          maxBytes: effectiveMaxBytes,
+        },
+        nextOffsetLines,
+        nextOffsetBytes,
+      };
+
+      if (truncation.firstLineExceedsLimit) {
+        const firstLine = selectedContent.split("\n", 1)[0] ?? "";
+        const firstLineSize = formatSize(Buffer.byteLength(firstLine, "utf-8"));
+        outputText = `[Line ${startLineDisplay} is ${firstLineSize}, exceeds ${formatSize(
+          effectiveMaxBytes,
+        )} limit. Retry with a larger limitBytes (up to ${formatSize(
+          config.maxLimitBytes ?? DEFAULT_MAX_LIMIT_BYTES,
+        )}) or use bash for byte-level reads.]`;
+      } else if (truncation.truncated) {
+        const endLineDisplay = startLineDisplay + truncation.outputLines - 1;
+        outputText += `\n\n[Showing lines ${startLineDisplay}-${endLineDisplay} of ${totalFileLines}. Use offsetLines=${nextOffsetLines} to continue or offsetBytes=${nextOffsetBytes} for byte-based paging.]`;
+      }
+
+      return {
+        content: [{ type: "text", text: outputText }],
+        details,
+      };
     },
   });
 
@@ -292,15 +347,17 @@ export default function(pi: ExtensionAPI) {
       const lines = [
         "Read Tool Configuration:",
         "",
-        `Max lines: ${config.maxLines}`,
-        `Max bytes: ${config.maxBytes} (${formatSize(config.maxBytes ?? DEFAULT_MAX_BYTES)})`,
+        `Default max lines: ${config.maxLines}`,
+        `Default max bytes: ${config.maxBytes} (${formatSize(config.maxBytes ?? DEFAULT_MAX_BYTES)})`,
+        `Hard max limit lines: ${config.maxLimitLines}`,
+        `Hard max limit bytes: ${config.maxLimitBytes} (${formatSize(config.maxLimitBytes ?? DEFAULT_MAX_LIMIT_BYTES)})`,
         "",
         "Settings files:",
         `  Global: ~/.pi/agent/settings.json`,
         `  Project: ${join(ctx.cwd, ".pi", "settings.json")}`,
         "",
         "Example configuration:",
-        '  { "readTool": { "maxLines": 100, "maxBytes": 5120 } }',
+        '  { "readTool": { "maxLines": 100, "maxBytes": 5120, "maxLimitLines": 2000, "maxLimitBytes": 51200 } }',
       ];
       ctx.ui.notify(lines.join("\n"), "info");
     },
