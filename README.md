@@ -1,5 +1,9 @@
 # pi-read
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/arcanemachine/pi-read/main/logo.jpg" alt="pi-read logo" width="250" />
+</p>
+
 > The Pi coding agent `/read` tool, but with lower (and configurable) default max values (e.g. 2000 lines -> 100 lines).
 
 A plugin for [Pi](https://github.com/badlogic/pi-mono) that overrides the built-in `read` tool with configurable truncation limits.
