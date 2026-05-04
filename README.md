@@ -30,6 +30,18 @@ To update to the latest version:
 pi update git:github.com/arcanemachine/pi-read
 ```
 
+### From npm
+
+```bash
+pi install npm:@arcanemachine/pi-read
+```
+
+To update to the latest version:
+
+```bash
+pi update npm:@arcanemachine/pi-read
+```
+
 ### From Local Clone
 
 ```bash
