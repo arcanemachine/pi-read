@@ -28,7 +28,7 @@
   "author": "Nicholas Moen",
   "license": "MIT",
   "devDependencies": {
-    "@mariozechner/pi-coding-agent": "^0.72.1",
+    "@earendil-works/pi-coding-agent": "^0.74.0",
     "@sinclair/typebox": "^0.34.49",
     "@types/node": "^25.3.0",
     "prettier": "^3.8.3",
@@ -36,10 +36,10 @@
     "vitest": "^4.1.5"
   },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": "*"
   },
   "peerDependenciesMeta": {
-    "@mariozechner/pi-coding-agent": {
+    "@earendil-works/pi-coding-agent": {
       "optional": true
     }
   },

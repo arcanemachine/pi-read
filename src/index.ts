@@ -30,12 +30,12 @@
  * ```
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   truncateHead,
   formatSize,
   createReadToolDefinition,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";

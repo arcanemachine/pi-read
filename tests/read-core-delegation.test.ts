@@ -51,7 +51,7 @@ function loadTool(readExtension: (pi: any) => void): RegisteredTool {
 
 afterEach(async () => {
   vi.resetModules();
-  vi.doUnmock("@mariozechner/pi-coding-agent");
+  vi.doUnmock("@earendil-works/pi-coding-agent");
   await Promise.all(
     tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
   );
@@ -64,9 +64,9 @@ describe("pi-read image delegation", () => {
       details: { delegated: true },
     }));
 
-    vi.doMock("@mariozechner/pi-coding-agent", async () => {
+    vi.doMock("@earendil-works/pi-coding-agent", async () => {
       const actual = await vi.importActual<any>(
-        "@mariozechner/pi-coding-agent",
+        "@earendil-works/pi-coding-agent",
       );
       return {
         ...actual,
@@ -97,9 +97,9 @@ describe("pi-read image delegation", () => {
   });
 
   it("fails fast when core read definition is incompatible", async () => {
-    vi.doMock("@mariozechner/pi-coding-agent", async () => {
+    vi.doMock("@earendil-works/pi-coding-agent", async () => {
       const actual = await vi.importActual<any>(
-        "@mariozechner/pi-coding-agent",
+        "@earendil-works/pi-coding-agent",
       );
       return {
         ...actual,
